@@ -1,16 +1,27 @@
-/* myserver.c */
-
+// ############################################################################
+// ############################################################################
+//
+//              VSYS - Uebung 1
+//
+//            Hörmann Daniel - if12b067
+//           Thorstensen Benjamin - if12b066
+//
+//
 /*
+                  TODO
+in send function:
+schreibt noch nicht ins message.txt file
+Ordnername noch nicht name vom sender                  
 
-lsof -i
-zeigt die ports an oderso
-
-
-
-Speichert text file ins falsche verzeichnis 
-Fehler abfragen noch anschauen
-Struktur der 
 */
+//
+// ############################################################################
+// ############################################################################
+//
+
+
+
+
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -22,9 +33,18 @@ Struktur der
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <iostream>
+using namespace std;
 #define BUF 1024
 #define PORT 6543
 #define DIRNAME "testdir"
+
+// ##################################################################################################################################################################
+// Prototypen
+int send(char * buffer);
+
+// ##################################################################################################################################################################
+
   
 int main (void) {
   int create_socket, new_socket;
@@ -32,7 +52,8 @@ int main (void) {
   char buffer[BUF];
   int size;
   struct sockaddr_in address, cliaddress; // speichert ip von client und server
-  int stat;
+ 
+  
 
 
 
@@ -65,28 +86,22 @@ int main (void) {
         if( size > 0)
         {
            buffer[size] = '\0';   //ende angeben sonst möglicher overflow
-
            ///****************************************
-           printf ("Message received: %s\n", buffer);   //schreibt bis zum \0
-           stat = mkdir(DIRNAME, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
-          if ( !stat )
-          {
-
-            printf("testomat\n");
-             //printf("Verzeichnis angelegt\n");
-            FILE *fp;
-            fp = fopen("messages.txt", "ab+");
-            if (fp == NULL)
-            {
-              printf("Error opening file!\n");
-              //exit(1);
+           
+           if (strcmp(buffer, "SEND\n") == 0) {
+            send(buffer);
             }
-
-          }  
-          else{
-             printf("Verzeichnis kann nicht angelegt werden\n");
-             //exit(1); //spring raus wenn es schon einen ordner gibt 
-          }
+           if (strcmp(buffer, "LIST\n") == 0) {
+            cout << "LIST" << endl;
+            }
+            if (strcmp(buffer, "READ\n") == 0) {
+            cout << "READ" << endl;
+            }
+            if (strcmp(buffer, "DEL\n") == 0) {
+            cout << "DELETE" << endl;
+            }
+           printf ("Message received: %s\n", buffer);   //schreibt bis zum \0
+            
         }
         //**********************************************
         else if (size == 0)
@@ -104,4 +119,17 @@ int main (void) {
   }
   close (create_socket);
   return EXIT_SUCCESS;
+}
+
+int send(char * buffer){
+  FILE *fp;
+  int stat;//fürs ordner erstellen
+  stat = mkdir(DIRNAME, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+  fp = fopen("testdir/messages.txt", "ab+");
+  fputs(buffer,fp);
+  if (fp == NULL)
+  {
+    printf("Error opening file!\n");
+    exit(1);
+  }
 }
