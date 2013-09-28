@@ -37,7 +37,6 @@ Ordnername noch nicht name vom sender
 using namespace std;
 #define BUF 1024
 #define PORT 6543
-#define DIRNAME "testdir"
 
 // ##################################################################################################################################################################
 // Prototypen
@@ -52,7 +51,7 @@ int main (void) {
   char buffer[BUF];
   int size;
   struct sockaddr_in address, cliaddress; // speichert ip von client und server
- 
+  int status = 0;
   
 
 
@@ -86,23 +85,33 @@ int main (void) {
         if( size > 0)
         {
            buffer[size] = '\0';   //ende angeben sonst möglicher overflow
+
            ///****************************************
            
-           if (strcmp(buffer, "SEND\n") == 0) {
-            send(buffer);
+           if (strcmp(buffer, "SEND\n") == 0 || status == 1) {
+            if(send(buffer) == 0) 
+              {
+                status = 5;
+              }
+            status = 1;
             }
            if (strcmp(buffer, "LIST\n") == 0) {
             cout << "LIST" << endl;
+            status = 2;
             }
             if (strcmp(buffer, "READ\n") == 0) {
             cout << "READ" << endl;
+            status = 3;
             }
             if (strcmp(buffer, "DEL\n") == 0) {
             cout << "DELETE" << endl;
+            status = 4;
             }
            printf ("Message received: %s\n", buffer);   //schreibt bis zum \0
             
         }
+
+
         //**********************************************
         else if (size == 0)
         {
@@ -124,12 +133,18 @@ int main (void) {
 int send(char * buffer){
   FILE *fp;
   int stat;//fürs ordner erstellen
-  stat = mkdir(DIRNAME, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
-  fp = fopen("testdir/messages.txt", "ab+");
-  fputs(buffer,fp);
+
+
+  stat = mkdir(buffer, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+  chdir(buffer);
+  fp = fopen("messages.txt", "ab+");
+  fprintf (fp,"text %s", buffer);
+
   if (fp == NULL)
   {
     printf("Error opening file!\n");
     exit(1);
   }
+ 
+  return 1;
 }
