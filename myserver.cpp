@@ -9,9 +9,11 @@
 //
 /*
                   TODO
-in send function:
-schreibt noch nicht ins message.txt file
-Ordnername noch nicht name vom sender                  
+SEND OPTION:
+Sender name muss noch gespeichert werden.
+Max zeichenanzahl muss noch überprüft werden 
+Formatierung <blub ...> 
+Muss in Sende funktion gepackt werden              
 
 */
 //
@@ -51,7 +53,10 @@ int main (void) {
   char buffer[BUF];
   int size;
   struct sockaddr_in address, cliaddress; // speichert ip von client und server
-  int status = 0;
+  int status = 0;  //dient als info für den aktuellen zustand
+  int stat; //fürs ordner erstellen
+  FILE *fp;
+
   
 
 
@@ -87,30 +92,39 @@ int main (void) {
            buffer[size] = '\0';   //ende angeben sonst möglicher overflow
 
            ///****************************************
-           
-           if (strcmp(buffer, "SEND\n") == 0 || status == 1) {
-            if(send(buffer) == 0) 
-              {
-                status = 5;
-              }
-            status = 1;
-            }
-           if (strcmp(buffer, "LIST\n") == 0) {
-            cout << "LIST" << endl;
-            status = 2;
-            }
-            if (strcmp(buffer, "READ\n") == 0) {
-            cout << "READ" << endl;
-            status = 3;
-            }
-            if (strcmp(buffer, "DEL\n") == 0) {
-            cout << "DELETE" << endl;
-            status = 4;
-            }
-           printf ("Message received: %s\n", buffer);   //schreibt bis zum \0
-            
-        }
 
+              if(status == 3) // <Nachricht, beliebige Anzahl an Zeilen\n>
+              {
+                //cout << "status: {"<< status << "}------ CASE : 3-------" <<endl;
+                fp = fopen("Mails.txt", "ab+");
+                fputs(buffer,fp);
+                fprintf(fp, ".");
+                fclose (fp);
+                chdir("..");
+                status = 0;                
+              }
+              else if(status == 2) //<Betreff max. 80 Zeichen>\n 
+              {
+                //cout << "status: {"<< status << "}------ CASE : 2-------" <<endl;
+                fp = fopen("Mails.txt", "ab+");
+                fprintf(fp, "Betreff: ");
+                fputs(buffer,fp);
+                fclose (fp);
+                status = 3;                
+              }
+              else if(status == 1) // <Empfänger max. 8 Zeichen>\n
+              {
+                //cout << "status: {"<< status << "}------ CASE : 1-------" <<endl;
+                stat = mkdir(buffer, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+                chdir(buffer); // in den ordner rein für messages.txt
+                status = 2;
+              }
+           if (strcmp(buffer, "SEND\n") == 0) {status = 1; cout << "send" << endl;}
+           else if (strcmp(buffer, "LIST\n") == 0) {status = 2;}
+           else if (strcmp(buffer, "READ\n") == 0) {status = 3;}
+           else if (strcmp(buffer, "DEL\n") == 0)  {status = 4;}
+           printf ("Message received: %s\n", buffer);   //schreibt bis zum \0
+        }
 
         //**********************************************
         else if (size == 0)
@@ -129,7 +143,7 @@ int main (void) {
   close (create_socket);
   return EXIT_SUCCESS;
 }
-
+/*
 int send(char * buffer){
   FILE *fp;
   int stat;//fürs ordner erstellen
@@ -138,6 +152,8 @@ int send(char * buffer){
   stat = mkdir(buffer, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
   chdir(buffer);
   fp = fopen("messages.txt", "ab+");
+
+
   fprintf (fp,"text %s", buffer);
 
   if (fp == NULL)
@@ -148,3 +164,4 @@ int send(char * buffer){
  
   return 1;
 }
+*/
