@@ -96,7 +96,7 @@ int main (void) {
 
            ///****************************************
            cout << "status: {"<< status << "}-------------" <<endl;
-           if (strcmp(buffer, "SEND\n") == 0  || status == 1 ||status == 2 ||status == 3) {
+           if (strcmp(buffer, "SEND\n") == 0  || status == 1 ||status == 2 ||status == 3||status == 4) {
            if (strcmp(buffer, "SEND\n") == 0){status =0;} 
           status=(send(buffer, status, mailname));}
            else if (strcmp(buffer, "LIST\n") == 0) {status = 4;
@@ -137,24 +137,25 @@ const string currentDateTime() {
 int send(char * buffer,int status, string & mailname){
   FILE *fp;
   int stat;//fürs ordner erstellen
-  
- 
- //cout << "time : " << currentDateTime() << endl;
-  
-  
- cout << "mailname 4" << mailname << endl;
- cout << "status in send {" << status << "}" << endl;
 
-  if(status == 3) // <Nachricht, beliebige Anzahl an Zeilen\n>
+  
+  if(status == 4)
   {
-    cout << "mailname" << mailname << endl;
+    if (strcmp(buffer, ".\n") != 0) {
     fp = fopen(mailname.c_str(), "ab+");
-    fputs(buffer,fp); // seg fault -----
+    fputs(buffer,fp); 
     fclose(fp);
-    cout << "mailname2" << mailname << endl;
-    chdir("..");
-    status = 0;    
-    cout << "mailname3" << mailname << endl;            
+
+    }else if(strcmp(buffer, ".\n") == 0){status = 0;chdir("..");}
+   
+  }
+  else if(status == 3) // <Nachricht, beliebige Anzahl an Zeilen\n>
+  {
+    fp = fopen(mailname.c_str(), "ab+");
+    fputs(buffer,fp); 
+    fclose(fp);
+    
+    status = 4;    
   }
   else if(status == 2) //<Betreff max. 80 Zeichen>\n 
   {
@@ -163,7 +164,6 @@ int send(char * buffer,int status, string & mailname){
     mailname.append(buffer);
     mailname.erase(remove(mailname.begin(), mailname.end(), '\n'), mailname.end());
     mailname.append(".txt");
-    cout << "mailname" << mailname << endl;
     fp = fopen(mailname.c_str(), "ab+");
     status = 3;              
   }
