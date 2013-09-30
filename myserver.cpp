@@ -42,7 +42,7 @@ using namespace std;
 
 // ##################################################################################################################################################################
 // Prototypen
-int send(char * buffer);
+int send(char * buffer, int status);
 
 // ##################################################################################################################################################################
 
@@ -93,6 +93,8 @@ int main (void) {
 
            ///****************************************
 
+
+/*
               if(status == 3) // <Nachricht, beliebige Anzahl an Zeilen\n>
               {
                 //cout << "status: {"<< status << "}------ CASE : 3-------" <<endl;
@@ -119,7 +121,11 @@ int main (void) {
                 chdir(buffer); // in den ordner rein für messages.txt
                 status = 2;
               }
-           if (strcmp(buffer, "SEND\n") == 0) {status = 1; cout << "send" << endl;}
+              */
+           cout << "status: {"<< status << "}-------------" <<endl;
+           if (strcmp(buffer, "SEND\n") == 0  || status == 1 ||status == 2 ||status == 3) {
+           if (strcmp(buffer, "SEND\n") == 0){status =0;} 
+          status=(send(buffer, status));}
            else if (strcmp(buffer, "LIST\n") == 0) {status = 2;}
            else if (strcmp(buffer, "READ\n") == 0) {status = 3;}
            else if (strcmp(buffer, "DEL\n") == 0)  {status = 4;}
@@ -143,25 +149,41 @@ int main (void) {
   close (create_socket);
   return EXIT_SUCCESS;
 }
-/*
-int send(char * buffer){
+
+int send(char * buffer,int status){
   FILE *fp;
   int stat;//fürs ordner erstellen
-
-
-  stat = mkdir(buffer, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
-  chdir(buffer);
-  fp = fopen("messages.txt", "ab+");
-
-
-  fprintf (fp,"text %s", buffer);
-
-  if (fp == NULL)
+  cout << "status in send {" << status << "}" << endl;
+  if(status == 3) // <Nachricht, beliebige Anzahl an Zeilen\n>
   {
-    printf("Error opening file!\n");
-    exit(1);
+    //cout << "status: {"<< status << "}------ CASE : 3-------" <<endl;
+    fp = fopen("Mails.txt", "ab+");
+    fputs(buffer,fp);
+    fprintf(fp, ".");
+    fclose (fp);
+    chdir("..");
+    status = 0;                
+  }
+  else if(status == 2) //<Betreff max. 80 Zeichen>\n 
+  {
+    //cout << "status: {"<< status << "}------ CASE : 2-------" <<endl;
+    fp = fopen("Mails.txt", "ab+");
+    fprintf(fp, "Betreff: ");
+    fputs(buffer,fp);
+    fclose (fp);
+    status = 3;                
+  }
+  else if(status == 1) // <Empfänger max. 8 Zeichen>\n
+  {
+    //cout << "status: {"<< status << "}------ CASE : 1-------" <<endl;
+    stat = mkdir(buffer, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+    chdir(buffer); // in den ordner rein für messages.txt
+    status = 2;
+  }
+  else if(status == 0)
+  {
+    status = 1;
   }
  
-  return 1;
+  return status;
 }
-*/
