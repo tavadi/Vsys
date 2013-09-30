@@ -36,6 +36,8 @@ Muss in Sende funktion gepackt werden
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <iostream>
+#include <time.h>  
+#include <sstream>
 using namespace std;
 #define BUF 1024
 #define PORT 6543
@@ -123,32 +125,48 @@ int main (void) {
   return EXIT_SUCCESS;
 }
 
+
+const string currentDateTime() {
+    time_t     now = time(0);
+    struct tm  tstruct;
+    char       buf[80];
+    tstruct = *localtime(&now);
+    strftime(buf, sizeof(buf), "%Y-%m-%d.%X", &tstruct);
+    return buf;
+}
+
 int send(char * buffer,int status){
   FILE *fp;
   int stat;//fürs ordner erstellen
+  string mailname;
+
+ //cout << "time : " << currentDateTime() << endl;
+  
+  
+
   cout << "status in send {" << status << "}" << endl;
   if(status == 3) // <Nachricht, beliebige Anzahl an Zeilen\n>
   {
-    //cout << "status: {"<< status << "}------ CASE : 3-------" <<endl;
-    fp = fopen("Mails.txt", "ab+");
+    //fp = fopen(mailname.c_str(), "ab+");
     fputs(buffer,fp);
-    fprintf(fp, ".\n");
-    fclose (fp);
+    fclose(fp);
     chdir("..");
     status = 0;                
   }
   else if(status == 2) //<Betreff max. 80 Zeichen>\n 
   {
-    //cout << "status: {"<< status << "}------ CASE : 2-------" <<endl;
-    fp = fopen("Mails.txt", "ab+");
-    fprintf(fp, "Betreff: ");
-    fputs(buffer,fp);
-    fclose (fp);
-    status = 3;                
+
+    mailname = currentDateTime();
+    mailname.append("_");
+    mailname.append(buffer);
+    mailname.erase(remove(mailname.begin(), mailname.end(), '\n'), mailname.end());
+    mailname.append(".txt");
+    fp = fopen(mailname.c_str(), "ab+");
+  
+    status = 3;              
   }
   else if(status == 1) // <Empfänger max. 8 Zeichen>\n
   {
-    //cout << "status: {"<< status << "}------ CASE : 1-------" <<endl;
     stat = mkdir(buffer, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
     chdir(buffer); // in den ordner rein für messages.txt
     status = 2;
@@ -157,7 +175,6 @@ int send(char * buffer,int status){
   {
     status = 1;
   }
- 
   return status;
 }
 
