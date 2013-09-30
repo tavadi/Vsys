@@ -44,7 +44,7 @@ using namespace std;
 
 // ##################################################################################################################################################################
 // Prototypen
-int send(char * buffer, int status);
+int send(char * buffer, int status,string & mailname);
 int list();
 
 // ##################################################################################################################################################################
@@ -59,7 +59,7 @@ int main (void) {
   int status = 0;  //dient als info für den aktuellen zustand
   int stat; //fürs ordner erstellen
   FILE *fp;
-
+  string mailname;
   
 
 
@@ -95,11 +95,10 @@ int main (void) {
            buffer[size] = '\0';   //ende angeben sonst möglicher overflow
 
            ///****************************************
-
            cout << "status: {"<< status << "}-------------" <<endl;
            if (strcmp(buffer, "SEND\n") == 0  || status == 1 ||status == 2 ||status == 3) {
            if (strcmp(buffer, "SEND\n") == 0){status =0;} 
-          status=(send(buffer, status));}
+          status=(send(buffer, status, mailname));}
            else if (strcmp(buffer, "LIST\n") == 0) {status = 4;
             list();}
            else if (strcmp(buffer, "READ\n") == 0) {status = 3;}
@@ -135,34 +134,37 @@ const string currentDateTime() {
     return buf;
 }
 
-int send(char * buffer,int status){
+int send(char * buffer,int status, string & mailname){
   FILE *fp;
   int stat;//fürs ordner erstellen
-  string mailname;
-
+  
+ 
  //cout << "time : " << currentDateTime() << endl;
   
   
+ cout << "mailname 4" << mailname << endl;
+ cout << "status in send {" << status << "}" << endl;
 
-  cout << "status in send {" << status << "}" << endl;
   if(status == 3) // <Nachricht, beliebige Anzahl an Zeilen\n>
   {
-    //fp = fopen(mailname.c_str(), "ab+");
-    fputs(buffer,fp);
+    cout << "mailname" << mailname << endl;
+    fp = fopen(mailname.c_str(), "ab+");
+    fputs(buffer,fp); // seg fault -----
     fclose(fp);
+    cout << "mailname2" << mailname << endl;
     chdir("..");
-    status = 0;                
+    status = 0;    
+    cout << "mailname3" << mailname << endl;            
   }
   else if(status == 2) //<Betreff max. 80 Zeichen>\n 
   {
-
     mailname = currentDateTime();
     mailname.append("_");
     mailname.append(buffer);
     mailname.erase(remove(mailname.begin(), mailname.end(), '\n'), mailname.end());
     mailname.append(".txt");
+    cout << "mailname" << mailname << endl;
     fp = fopen(mailname.c_str(), "ab+");
-  
     status = 3;              
   }
   else if(status == 1) // <Empfänger max. 8 Zeichen>\n
