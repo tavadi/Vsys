@@ -9,11 +9,8 @@
 //
 /*
                   TODO
-SEND OPTION:
-Sender name muss noch gespeichert werden.
-Max zeichenanzahl muss noch überprüft werden 
-Formatierung <blub ...> 
-Muss in Sende funktion gepackt werden              
+List Option:
+Ordner ausgabe           
 
 */
 //
@@ -39,6 +36,7 @@ Muss in Sende funktion gepackt werden
 #include <time.h>  
 #include <sstream>
 #include <errno.h>
+#include <dirent.h>
 using namespace std;
 #define BUF 1024
 //define PORT 6543
@@ -48,7 +46,7 @@ using namespace std;
 //******************************Prototypen*********************************
 // 
 int SaveMail(char * buffer, int status,string & mailname, string & Mail);
-int list();
+int list(char * buffer, int status);
 //*************************************************************************
 //*************************************************************************
 
@@ -115,14 +113,22 @@ int main (int argc, char **argv) {
         {
            buffer[size] = '\0';   //Ende angeben sonst möglicher Overflow
            //cout << "status: {"<< status << "}-------------" << "laststatus : {" << laststatus << "}" <<endl;
-           if (strcmp(buffer, "SEND\n") == 0  || status == 1 ||status == 2 ||status == 3||status == 4 || status == 5){
+           if (strcmp(buffer, "SEND\n") == 0 || status >= 1 && status <= 5){
              if((status=(SaveMail(buffer, status, mailname, Mail))) == -1 ){
                 send(new_socket, ERR, strlen(ERR),0);
              }else{
               send(new_socket, OK, strlen(OK),0);
              }
            }
-           else if (strcmp(buffer, "LIST\n") == 0) {status = 4;list();}
+           else if (strcmp(buffer, "LIST\n")  == 0 || status == 6 || status == 7 ) {
+             if((status=(list(buffer, status))) == -1 ){
+
+
+            send(new_socket, ERR, strlen(ERR),0);
+             }else{
+              send(new_socket, OK, strlen(OK),0);
+             }
+         }
            else if (strcmp(buffer, "READ\n") == 0) {status = 3;}
            else if (strcmp(buffer, "DEL\n") == 0)  {status = 4;}
            printf ("Message received: %s\n", buffer);   //schreibt bis zum \0
@@ -174,12 +180,15 @@ int SaveMail(char * buffer,int status, string & mailname, string & Mail){
       fp = fopen(mailname.c_str(), "ab+");
       if (fp == NULL){
         printf ("Error opening file unexist.ent: %s\n",strerror(errno));
-       return -1;
+       return EXIT_FAILURE;
       }else{
         fputs(Mail.c_str(),fp); 
         fclose(fp);
         status = 0;
-        chdir("..");
+      if (chdir("..") != 0){  //zurück in den main ordner
+        perror("chdir() to /tmp failed");
+        return EXIT_FAILURE;
+      } 
         Mail.erase();
       }
     }
@@ -197,14 +206,14 @@ int SaveMail(char * buffer,int status, string & mailname, string & Mail){
       mailname.append(".txt");
       Mail.append(buffer);
       fp = fopen(mailname.c_str(), "ab+");  //File erstellen
-      if (fp == NULL){
+  /*    if (fp == NULL){
         printf ("Error opening file unexist.ent: %s\n",strerror(errno));
-        return -1;
+        return EXIT_FAILURE;
       }
-      else{
+      else{*/
         fclose(fp);
         status = 4; 
-      }
+      
       
     }else{
       return -1;
@@ -214,7 +223,7 @@ int SaveMail(char * buffer,int status, string & mailname, string & Mail){
     if((strlen(buffer)) <= 9){
       stat = mkdir(buffer, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
       if (chdir(buffer) != 0){  // in den rdner rein um auf Mail zuzugreifen
-        perror("chdir() to /tmp failed");
+        perror("chdir() failed");
       } 
       Mail.append(buffer);
       status = 3;
@@ -225,8 +234,7 @@ int SaveMail(char * buffer,int status, string & mailname, string & Mail){
     if((strlen(buffer)) <= 9){
       Mail.append(buffer);
       status = 2;
-    }else{
-      return -1;
+    }else{// ---------------?!?!?
     }
   }else if(status == 0){  //SEND wird initalisiert 
     status = 1;
@@ -241,8 +249,28 @@ int SaveMail(char * buffer,int status, string & mailname, string & Mail){
 //*************************************************************************
 
 
-int list (){
+int list (char * buffer, int status){
+    //Directory Pointer
+    DIR           *dp;
+
+    //zugriff auf d_name
+    struct dirent *dir;
+
+    cout << "PATH: " << buffer << "status: {" <<status << "}" <<endl;
+    
+if(status == 7)
+{     if ((dp=opendir(buffer)) == NULL)
+      return status;
+   while((dir=readdir(dp)) != NULL)
+      printf("%s\n",dir->d_name);
+   closedir(dp);
 
 
-
+}
+else if(status == 0)
+{
+  cout << "bla" << endl;
+  status = 7;
+}
+return status;
 }
