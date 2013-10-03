@@ -10,7 +10,8 @@
 /*
                   TODO
 List Option:
-Ordner ausgabe           
+Ordner ausgabe  
+
 
 */
 //
@@ -35,6 +36,7 @@ Ordner ausgabe
 #include <iostream>
 #include <time.h>  
 #include <sstream>
+#include <fstream>
 #include <errno.h>
 #include <dirent.h>
 using namespace std;
@@ -199,9 +201,9 @@ int SaveMail(char * buffer,int status, string & mailname, string & Mail){
   }
   else if(status == 3){ //<Betreff max. 80 Zeichen>\n 
     if((strlen(buffer)) <= 81){
-      mailname = currentDateTime();
+      mailname = buffer;
       mailname.append("_");
-      mailname.append(buffer);
+      mailname.append(currentDateTime());
       mailname.erase(remove(mailname.begin(), mailname.end(), '\n'), mailname.end());
       mailname.append(".txt");
       Mail.append(buffer);
@@ -251,9 +253,10 @@ int SaveMail(char * buffer,int status, string & mailname, string & Mail){
 
 int list (char * buffer, int status){
     //Directory Pointer
-    DIR           *dp;
-
-    //zugriff auf d_name
+    FILE * fp;
+    DIR * dp;
+     string file_name;
+    unsigned int mailcount = 0;
     struct dirent *dir;
 
     cout << "PATH: " << buffer << "status: {" <<status << "}" <<endl;
@@ -262,9 +265,37 @@ if(status == 7)
 {     if ((dp=opendir(buffer)) == NULL)
       return status;
    while((dir=readdir(dp)) != NULL)
-      printf("%s\n",dir->d_name);
-   closedir(dp);
-
+   {
+    if(     strcmp( dir->d_name, "." ) == 0 || 
+            strcmp( dir->d_name, ".." ) == 0 ||
+            strcmp( dir->d_name, ".DS_Store" ) == 0 )
+        {
+          continue;
+    }else{ 
+      mailcount++;
+    }
+   }
+  cout << "Sie haben " << mailcount << " Nachrichten." << endl;
+  mailcount = 0;
+  rewinddir(dp);
+   while((dir=readdir(dp)) != NULL)
+   {
+    if(     strcmp( dir->d_name, "." ) == 0 || 
+            strcmp( dir->d_name, ".." ) == 0 ||
+            strcmp( dir->d_name, ".DS_Store" ) == 0 )
+        {
+          continue;
+    }else{        
+        file_name = mailcount;
+        file_name = dir->d_name;
+        stringstream stream(file_name);
+        getline(stream,file_name,'_');
+        mailcount++;
+        cout << "[" << mailcount << "]"<< file_name << endl;
+    }  
+   }
+      
+    closedir(dp);
 
 }
 else if(status == 0)
