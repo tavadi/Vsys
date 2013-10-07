@@ -39,16 +39,19 @@ Ordner ausgabe
 #include <fstream>
 #include <errno.h>
 #include <dirent.h>
-using namespace std;
+
 #define BUF 1024
 //define PORT 6543
 #define OK "OK\n"
 #define ERR "ERR\n"
+
+
+using namespace std;
 //*************************************************************************
 //******************************Prototypen*********************************
 // 
 int SaveMail(char * buffer, int status,string & mailname, string & Mail);
-int list(char * buffer, int status);
+int list(char * buffer, int status, string & Mail);
 //*************************************************************************
 //*************************************************************************
 
@@ -123,7 +126,7 @@ int main (int argc, char **argv) {
              }
            }
            else if (strcmp(buffer, "LIST\n")  == 0 || status == 6 || status == 7 ) {
-             if((status=(list(buffer, status))) == -1 ){
+             if((status=(list(buffer, status, Mail))) == -1 ){
 
 
             send(new_socket, ERR, strlen(ERR),0);
@@ -251,13 +254,14 @@ int SaveMail(char * buffer,int status, string & mailname, string & Mail){
 //*************************************************************************
 
 
-int list (char * buffer, int status){
+int list (char * buffer, int status, string & Mail){
     //Directory Pointer
     FILE * fp;
     DIR * dp;
-     string file_name;
-    unsigned int mailcount = 0;
+    string file_name;
+    int mailcount = 0;
     struct dirent *dir;
+    stringstream ss;
 
     cout << "PATH: " << buffer << "status: {" <<status << "}" <<endl;
     
@@ -275,9 +279,11 @@ if(status == 7)
       mailcount++;
     }
    }
-  cout << "Sie haben " << mailcount << " Nachrichten." << endl;
-  mailcount = 0;
-  rewinddir(dp);
+   ss << mailcount;
+   Mail = "Sie haben " + ss.str() + " Nachrichten.\n";
+   ss.str("");
+   mailcount = 1;
+   rewinddir(dp);
    while((dir=readdir(dp)) != NULL)
    {
     if(     strcmp( dir->d_name, "." ) == 0 || 
@@ -285,23 +291,17 @@ if(status == 7)
             strcmp( dir->d_name, ".DS_Store" ) == 0 )
         {
           continue;
-    }else{        
-        file_name = mailcount;
-        file_name = dir->d_name;
-        stringstream stream(file_name);
-        getline(stream,file_name,'_');
+    }else{  
+        file_name = dir->d_name;  
+        ss.str("");   //stringstream clear
+        ss << mailcount;  //speichert Nummer der Mail
+        stringstream ss2(file_name);
+        Mail.append("[" + ss.str() + "] " + file_name + "\n");
         mailcount++;
-        cout << "[" << mailcount << "]"<< file_name << endl;
     }  
    }
-      
     closedir(dp);
-
 }
-else if(status == 0)
-{
-  cout << "bla" << endl;
-  status = 7;
-}
+else if(status == 0){status = 7;}
 return status;
 }
