@@ -44,6 +44,7 @@ Ordner ausgabe
 //define PORT 6543
 #define OK "OK\n"
 #define ERR "ERR\n"
+#define UNKNOWN "read the fking man page!\n"
 
 
 using namespace std;
@@ -52,6 +53,7 @@ using namespace std;
 // 
 int SaveMail(char * buffer, int status,string & mailname, string & Mail);
 int list(char * buffer, int status, string & Mail);
+int read(char * buffer, int status, string & Mail);
 //*************************************************************************
 //*************************************************************************
 
@@ -116,34 +118,88 @@ int main (int argc, char **argv) {
         }
         if( size > 0)
         {
+
+
            buffer[size] = '\0';   //Ende angeben sonst möglicher Overflow
-           //cout << "status: {"<< status << "}-------------" << "laststatus : {" << laststatus << "}" <<endl;
+//###########################    SEND   #####################################################
+           if (strcmp(buffer, "SEND\n") == 0 || ( status >= 1 && status <= 5)){
+
+              //Funktionsaufruf:
+             if((status=(SaveMail(buffer, status, mailname, Mail))) == -1 ){
+               send(new_socket, ERR, strlen(ERR),0); // FEHLER = return -1
+             }else{
+              send(new_socket, OK, strlen(OK),0); //OK 
+             }  
+
+           }
+//###########################    LIST   #####################################################
+           else if (strcmp(buffer, "LIST\n")  == 0 || status == 6 || status == 7 ) {
+            
+              if((status=(list(buffer, status, Mail))) == -1 ){
+                send(new_socket, ERR, strlen(ERR),0); // FEHLER = return -1
+              }
+              else if(status == 8)
+              {
+               send(new_socket, Mail.c_str(), strlen(Mail.c_str()),0);    //schicke mail zum client
+               status = 0;  //programm fertig
+               Mail.erase();
+              }else{
+                send(new_socket, OK, strlen(OK),0); // OK
+              }
+          }
+//###########################    READ   #####################################################
+          else if(strcmp(buffer, "READ\n" )  == 0 || status == 9 || status == 10 || status == 11)
+          {
+            cout << "status: {"<< status << "}-------------" << "laststatus : {" << laststatus << "}" <<endl;
+            if((status=(read(buffer, status, Mail))) == -1 ){
+                send(new_socket, ERR, strlen(ERR),0); // FEHLER = return -1
+              }else{
+                send(new_socket, OK, strlen(OK),0); //OK
+              }
+          }
+          else{
+            send(new_socket, ERR, strlen(ERR),0); // OK
+          }
+
+      /*     
+           cout << "status: {"<< status << "}-------------" << "laststatus : {" << laststatus << "}" <<endl;
+
+
+
            if (strcmp(buffer, "SEND\n") == 0 || ( status >= 1 && status <= 5)){
              if((status=(SaveMail(buffer, status, mailname, Mail))) == -1 ){
+                cout << "STATUS : " << status << endl; 
                 send(new_socket, ERR, strlen(ERR),0);
              }else{
               send(new_socket, OK, strlen(OK),0);
+              cout << "STATUS : " << status << endl; 
              }
-           }//################################################################################
+           }//###########################    LIST   #####################################################
            else if (strcmp(buffer, "LIST\n")  == 0 || status == 6 || status == 7 ) {
              if((status=(list(buffer, status, Mail))) == -1 ){
             send(new_socket, ERR, strlen(ERR),0);
-             }else 
-             if(status == 8)
+
+             }else if(status == 8)
              {
-                cout << "status = 8" << endl;
                send(new_socket, Mail.c_str(), strlen(Mail.c_str()),0);    
-               status = 0;      
+               status = 0;
+               cout << "STATUS : " << status << endl; 
+               break;
+
              }else{
+              cout << "STATUS : " << status << endl; 
               send(new_socket, OK, strlen(OK),0);
              }
-         }//################################################################################
+         }//############################     READ    ###############################################
            else if (strcmp(buffer, "READ\n") == 0) {status = 3;}
-           //################################################################################
+           //#############################   DEL     ###########################################
            else if (strcmp(buffer, "DEL\n") == 0)  {status = 4;}
            else{
+            cout << "STATUS : " << status << endl; 
             cout << "unkown message [" << buffer << "]" << endl;
+             send(new_socket, ERR, strlen(ERR),0);
            }
+           */
            printf ("Message received: %s\n", buffer);   //schreibt bis zum \0
         }
 
@@ -295,19 +351,18 @@ if(status == 7)
     if(     strcmp( dir->d_name, "." ) == 0 || 
             strcmp( dir->d_name, ".." ) == 0 ||
             strcmp( dir->d_name, ".DS_Store" ) == 0 )
-        {
-          continue;
-    }else{  
-        file_name = dir->d_name;  
-        ss.str("");   //stringstream clear
-        ss << mailcount;  //speichert Nummer der Mail
-        stringstream ss2(file_name);
-        getline(ss2,file_name, '_');
-        cout << "file_name : " <<  file_name << endl;
-        cout << "ss2 : "<< ss2 << endl;
-        Mail.append("[" + ss.str() + "] " + file_name + "\n");
-        mailcount++;
-    }  
+        {continue;}
+        else{  
+          file_name = dir->d_name;  
+          ss.str("");   //stringstream clear
+          ss << mailcount;  //speichert Nummer der Mail
+          stringstream ss2(file_name);
+          getline(ss2,file_name, '_');
+          cout << "file_name : " <<  file_name << endl;
+          cout << "ss2 : "<< ss2 << endl;
+          Mail.append("[" + ss.str() + "] " + file_name + "\n");
+          mailcount++;
+        }  
    }
     closedir(dp);
     status = 8;
@@ -316,3 +371,71 @@ if(status == 7)
 else if(status == 0){status = 7;}
 return status;
 }
+//*************************************************************************
+//*************************************************************************
+//*************************************************************************
+
+int read (char * buffer, int status, string & Mail)
+{
+  FILE *fp;
+  DIR * dp;
+  struct dirent *dir;
+  cout << "Status : ---" << status << endl;
+  int i = 0;
+  
+  if(status == 11){
+    cout << "Status : ---" << status << endl;
+    cout << "Mail nr: " << buffer << endl;
+
+    //hier kommt er nich rein ...
+    while((dir=readdir(dp)) != NULL && i <= atoi(buffer))
+   {  if(   strcmp( dir->d_name, "." ) == 0 || 
+            strcmp( dir->d_name, ".." ) == 0 ||
+            strcmp( dir->d_name, ".DS_Store" ) == 0 )
+        { cout << "dir: " << dir->d_name << endl;
+          continue;}
+        else{
+          i++;
+          cout << "I : " << i << endl;
+        }
+      cout << "Status : ---BLUB :" << status << endl;
+      cout << "dir->d_name: " << dir->d_name << endl;
+      //fp = fopen(dir->d_name, "r");
+      ifstream in(dir->d_name);
+      stringstream buffer1;
+      buffer1 << in.rdbuf();
+      string contents(buffer1.str());
+      cout << contents << endl;
+
+   }
+ }else if(status == 10){
+        cout << "Status : ---" << status << endl;
+        cout << "pfad : " << buffer << endl;
+ /*      if (chdir(buffer) != 0){  // in den ordner rein um auf Mail zuzugreifen
+        perror("chdir() failed");
+        return -1;
+      }
+*/
+       if ((dp=opendir(buffer)) == NULL)
+       {
+      return status;
+        
+       }
+      else
+      {
+        status = 11;  
+      } 
+  }else if(status == 0){
+    cout << "Status : ---" << status << endl;
+    status = 10;
+  } 
+
+  
+ 
+  /*fclose(fp);
+  closedir(dp);
+
+  */
+  return status;
+}
+
