@@ -72,11 +72,8 @@ int main (int argc, char **argv) {
   } 
   printf ("Send message: ");
   do {
-
      fgets (buffer, BUF, stdin);  //eingabe wird eingelesen
-
      send(create_socket, buffer, strlen (buffer), 0); //gesendet
-
       size=recv(create_socket,buffer,BUF-1, 0);  //status wird gesendet OK oder ERR
       if (size>0){
         buffer[size]= '\0';

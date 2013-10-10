@@ -118,24 +118,32 @@ int main (int argc, char **argv) {
         {
            buffer[size] = '\0';   //Ende angeben sonst möglicher Overflow
            //cout << "status: {"<< status << "}-------------" << "laststatus : {" << laststatus << "}" <<endl;
-           if (strcmp(buffer, "SEND\n") == 0 || status >= 1 && status <= 5){
+           if (strcmp(buffer, "SEND\n") == 0 || ( status >= 1 && status <= 5)){
              if((status=(SaveMail(buffer, status, mailname, Mail))) == -1 ){
                 send(new_socket, ERR, strlen(ERR),0);
              }else{
               send(new_socket, OK, strlen(OK),0);
              }
-           }
+           }//################################################################################
            else if (strcmp(buffer, "LIST\n")  == 0 || status == 6 || status == 7 ) {
              if((status=(list(buffer, status, Mail))) == -1 ){
-
-
             send(new_socket, ERR, strlen(ERR),0);
+             }else 
+             if(status == 8)
+             {
+                cout << "status = 8" << endl;
+               send(new_socket, Mail.c_str(), strlen(Mail.c_str()),0);    
+               status = 0;      
              }else{
               send(new_socket, OK, strlen(OK),0);
              }
-         }
+         }//################################################################################
            else if (strcmp(buffer, "READ\n") == 0) {status = 3;}
+           //################################################################################
            else if (strcmp(buffer, "DEL\n") == 0)  {status = 4;}
+           else{
+            cout << "unkown message [" << buffer << "]" << endl;
+           }
            printf ("Message received: %s\n", buffer);   //schreibt bis zum \0
         }
 
@@ -218,8 +226,6 @@ int SaveMail(char * buffer,int status, string & mailname, string & Mail){
       else{*/
         fclose(fp);
         status = 4; 
-      
-      
     }else{
       return -1;
     }             
@@ -296,11 +302,16 @@ if(status == 7)
         ss.str("");   //stringstream clear
         ss << mailcount;  //speichert Nummer der Mail
         stringstream ss2(file_name);
+        getline(ss2,file_name, '_');
+        cout << "file_name : " <<  file_name << endl;
+        cout << "ss2 : "<< ss2 << endl;
         Mail.append("[" + ss.str() + "] " + file_name + "\n");
         mailcount++;
     }  
    }
     closedir(dp);
+    status = 8;
+    return status;
 }
 else if(status == 0){status = 7;}
 return status;
