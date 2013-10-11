@@ -53,7 +53,7 @@ using namespace std;
 // 
 int SaveMail(char * buffer, int status,string & mailname, string & Mail);
 int list(char * buffer, int status, string & Mail);
-int read(char * buffer, int status, string & Mail);
+int read(char * buffer, int status, string & Mail, int size, int new_socket );
 //*************************************************************************
 //*************************************************************************
 
@@ -105,7 +105,7 @@ int main (int argc, char **argv) {
      }
      do {
         size = recv (new_socket, buffer, BUF-1, 0); //holt sich die nachrich
-
+        
 
        ///**************Arbeitsgebiet**************************
 
@@ -151,7 +151,7 @@ int main (int argc, char **argv) {
           else if(strcmp(buffer, "READ\n" )  == 0 || status == 9 || status == 10 || status == 11)
           {
             cout << "status: {"<< status << "}-------------" << "laststatus : {" << laststatus << "}" <<endl;
-            if((status=(read(buffer, status, Mail))) == -1 ){
+            if((status=(read(buffer, status, Mail, size, new_socket ))) == -1 ){
                 send(new_socket, ERR, strlen(ERR),0); // FEHLER = return -1
               }else{
                 send(new_socket, OK, strlen(OK),0); //OK
@@ -311,6 +311,8 @@ int SaveMail(char * buffer,int status, string & mailname, string & Mail){
 
 
 
+
+
 //*************************************************************************
 //*************************************************************************
 //*************************************************************************
@@ -375,67 +377,53 @@ return status;
 //*************************************************************************
 //*************************************************************************
 
-int read (char * buffer, int status, string & Mail)
+int read (char * buffer, int status, string & Mail,int size, int new_socket  )
 {
-  FILE *fp;
+  
   DIR * dp;
   struct dirent *dir;
   cout << "Status : ---" << status << endl;
   int i = 0;
-  
-  if(status == 11){
-    cout << "Status : ---" << status << endl;
-    cout << "Mail nr: " << buffer << endl;
+  send(new_socket, "OK1\n", strlen("OK1\n"),0);
+  size = recv (new_socket, buffer, BUF-1, 0);
+  buffer[size] = '\0';  
+  cout <<"buffer: " << buffer  << endl;
+  if ((dp=opendir(buffer)) == NULL)
+  {
+    return -1;
+  }
 
-    //hier kommt er nich rein ...
-    while((dir=readdir(dp)) != NULL && i <= atoi(buffer))
-   {  if(   strcmp( dir->d_name, "." ) == 0 || 
-            strcmp( dir->d_name, ".." ) == 0 ||
-            strcmp( dir->d_name, ".DS_Store" ) == 0 )
-        { cout << "dir: " << dir->d_name << endl;
-          continue;}
-        else{
-          i++;
-          cout << "I : " << i << endl;
-        }
-      cout << "Status : ---BLUB :" << status << endl;
-      cout << "dir->d_name: " << dir->d_name << endl;
-      //fp = fopen(dir->d_name, "r");
-      ifstream in(dir->d_name);
-      stringstream buffer1;
-      buffer1 << in.rdbuf();
-      string contents(buffer1.str());
-      cout << contents << endl;
+  send(new_socket, "OK1\n", strlen("OK1\n"),0);
+  size = recv (new_socket, buffer, BUF-1, 0);
+  buffer[size] = '\0';  
+  while((dir=readdir(dp)) != NULL && i < (atoi(buffer)-1) )
+  {
+    if(     strcmp( dir->d_name, "." ) == 0 || 
+    strcmp( dir->d_name, ".." ) == 0 ||
+    strcmp( dir->d_name, ".DS_Store" ) == 0 )
+    {
+     continue;
+    }else{ 
+      i++;
+    }
+  }
+/*
 
-   }
- }else if(status == 10){
-        cout << "Status : ---" << status << endl;
-        cout << "pfad : " << buffer << endl;
- /*      if (chdir(buffer) != 0){  // in den ordner rein um auf Mail zuzugreifen
-        perror("chdir() failed");
-        return -1;
-      }
+Hier muss noch das file ausgelesen werden und danach gesendet werden
+  FILE *fp = std::fopen(dir->d_name, "rb");
+
+  if (fp)
+  {
+  std::string contents;
+  std::fseek(fp, 0, SEEK_END);
+  contents.resize(std::ftell(fp));
+  std::rewind(fp);
+  std::fread(&contents[0], 1, contents.size(), fp);
+  std::fclose(fp);
+  cout << contents << endl;
+  }
 */
-       if ((dp=opendir(buffer)) == NULL)
-       {
-      return status;
-        
-       }
-      else
-      {
-        status = 11;  
-      } 
-  }else if(status == 0){
-    cout << "Status : ---" << status << endl;
-    status = 10;
-  } 
-
-  
- 
-  /*fclose(fp);
-  closedir(dp);
-
-  */
+  send(new_socket, "OK1\n", strlen("OK1\n"),0);
   return status;
 }
 
