@@ -39,7 +39,6 @@ Ordner ausgabe
 //define PORT 6543
 #define OK "OK\n"
 #define ERR "ERR\n"
-#define UNKNOWN "read the fking man page!\n"
 
 using namespace std;
 //debug
@@ -59,10 +58,10 @@ int CWD()
 
 //*************************************************************************
 //******************************Prototypen*********************************
-int SaveMail(char * buffer, int status,string & mailname, string & Mail, int size, int new_socket);
-int ListMail(char * buffer, int status, string & Mail, int size, int new_socket );
-int ReadMail(char * buffer, int status, string & Mail, int size, int new_socket );
-int DeleteMail(char * buffer, int status, string & Mail, int size, int new_socket );
+int SaveMail(char * buffer, string & mailname, string & Mail, int size, int new_socket);
+int ListMail(char * buffer,  string & Mail, int size, int new_socket );
+int ReadMail(char * buffer,  string & Mail, int size, int new_socket );
+int DeleteMail(char * buffer,  string & Mail, int size, int new_socket );
 void ManPage();
 //*************************************************************************
 //*************************************************************************
@@ -74,22 +73,34 @@ int main (int argc, char **argv) {
   char buffer[BUF];
   int size;
   struct sockaddr_in address, cliaddress; // speichert ip von client und server
-  int status = 0;  //dient als info für den aktuellen zustand
-  int laststatus = 0;
+
+
   int stat; //fürs ordner erstellen
   FILE *fp;
   string mailname;
   string Mail;
   int port;
 
+ if (strcmp(argv[1], "help")  == 0) {
   ManPage();
-
- if( argc < 2 ){
-     printf("Usage: %s ServerAdresse\n", argv[0]);
+  return EXIT_SUCCESS;
+ }else if( argc != 3){
+     cout << "./myserver [PORT] [DIRECTORY]" << endl;
+     cout << "Manpage:" << endl << "./myserver help" << endl;
      exit(EXIT_FAILURE);
   }else
-  {
+  { 
     port = atoi(argv[1]);
+    if (chdir(argv[2]) != 0){  //zurück in den main ordner
+        //wenn kein ordner vorhanden ist, erstelle einen
+        if (mkdir(argv[2], S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH)!= 0)
+        {
+           perror("mkdir() error");
+        }
+        if (chdir(argv[2]) != 0){
+            perror("chdir() error");
+        }
+      } 
   }
   create_socket = socket (AF_INET, SOCK_STREAM, 0); //Socket descriptor angelegt // af_inet = ipv4 // SOCK_Stream = TCP ... SOCK DATAGRAM = UPD
 
@@ -117,17 +128,7 @@ int main (int argc, char **argv) {
      }
      do {
         size = recv (new_socket, buffer, BUF-1, 0); //holt sich die nachrich
-        
-
        ///**************Arbeitsgebiet**************************
-
-        if (status == -1) // FEHLER
-        {
-          status = laststatus;  //Status wird zurückgesetzt
-        }
-        else{             //Kein Fehler
-          laststatus = status;  //Status wird gespeichert
-        }
         if( size > 0)
         {
 
@@ -135,17 +136,16 @@ int main (int argc, char **argv) {
 //###########################    SEND   #####################################################
            if (strcmp(buffer, "SEND\n") == 0){
               //Funktionsaufruf:
-             if((status=(SaveMail(buffer, status, mailname, Mail, size,  new_socket))) == -1 ){
+             if(SaveMail(buffer , mailname, Mail, size,  new_socket) == -1 ){
                send(new_socket, ERR, strlen(ERR),0); // FEHLER = return -1
              }else{
               send(new_socket, OK, strlen(OK),0); //OK 
              }  
-
            }
 //###########################    LIST   #####################################################
            else if (strcmp(buffer, "LIST\n")  == 0) {
             
-              if((status=(ListMail(buffer, status, Mail, size,  new_socket))) == -1 ){
+              if(ListMail(buffer , Mail, size,  new_socket) == -1 ){
                 send(new_socket, ERR, strlen(ERR),0); // FEHLER = return -1
               }
               else{
@@ -155,27 +155,37 @@ int main (int argc, char **argv) {
 //###########################    READ   #####################################################
           else if(strcmp(buffer, "READ\n" )  == 0 )
           {
-            cout << "status: {"<< status << "}-------------" << "laststatus : {" << laststatus << "}" <<endl;
-            if((status=(ReadMail(buffer, status, Mail, size, new_socket ))) == -1 ){
+            if(ReadMail(buffer , Mail, size, new_socket ) == -1 ){
                 send(new_socket, ERR, strlen(ERR),0); // FEHLER = return -1
               }else{
                 send(new_socket, OK, strlen(OK),0); //OK
               }
-          }//###########################    DELETE   #####################################################
+          }
+//###########################    DELETE   #####################################################
           else if(strcmp(buffer, "DEL\n" )  == 0 )
           {
-            cout << "status: {"<< status << "}-------------" << "laststatus : {" << laststatus << "}" <<endl;
-            if((status=(DeleteMail(buffer, status, Mail, size, new_socket ))) == -1 ){
+            if(DeleteMail(buffer , Mail, size, new_socket ) == -1 ){
                 send(new_socket, ERR, strlen(ERR),0); // FEHLER = return -1
               }else{
                 send(new_socket, OK, strlen(OK),0); //OK
               }
           }
-          else{
-            send(new_socket, ERR, strlen(ERR),0); // OK
+//###########################    QUIT   #####################################################
+          else if(strcmp(buffer, "QUIT\n" )  == 0 )
+          {
+           
+            send(new_socket, "QUIT\n", strlen("QUIT\n"),0); //OK
+          }
+          else if(strcmp(buffer, "CWD\n" )  == 0 )
+          {
+            CWD();
+            send(new_socket, "OK\n", strlen("OK\n"),0); //OK
           }
 
 
+          else{ 
+            send(new_socket, ERR, strlen(ERR),0); 
+          }
 //-----------------------------------------------STOP--------------------------
            printf ("Message received: %s\n", buffer);   //schreibt bis zum \0
         }
@@ -189,13 +199,12 @@ int main (int argc, char **argv) {
            perror("recv error");
            return EXIT_FAILURE;
         }
-     } while (strncmp (buffer, "quit", 4)  != 0);
+     } while (strncmp (buffer, "quit\n", 4)  != 0);
      close (new_socket);
   }
   close (create_socket);
   return EXIT_SUCCESS;
 }
-
 
 const string currentDateTime() {
     time_t     now = time(0);
@@ -206,15 +215,12 @@ const string currentDateTime() {
     return buf;
 }
 
-
-
-
 //*************************************************************************
 //*************************************************************************
 //*************************************************************************
 
 
-int ListMail (char * buffer, int status, string & Mail,int size, int new_socket){
+int ListMail (char * buffer,  string & Mail,int size, int new_socket){
     //Directory Pointer
     FILE * fp;
     DIR * dp;
@@ -223,13 +229,18 @@ int ListMail (char * buffer, int status, string & Mail,int size, int new_socket)
     struct dirent *dir;
     stringstream ss;
 
-  send(new_socket, "OK1\n", strlen("OK1\n"),0);
-  size = recv (new_socket, buffer, BUF-1, 0);
-  buffer[size] = '\0'; 
+    send(new_socket, "OK\n", strlen("OK\n"),0);
+    size = recv (new_socket, buffer, BUF-1, 0);
+    buffer[size] = '\0'; 
 
+    if((strlen(buffer)) > 9){  
+      perror("String too long error");
+      return -1;
+    }
     if ((dp=opendir(buffer)) == NULL)
-   { return status;
-
+   { 
+    perror("opendir() error");
+    return -1;
    } 
     while((dir=readdir(dp)) != NULL)
     {
@@ -265,61 +276,82 @@ int ListMail (char * buffer, int status, string & Mail,int size, int new_socket)
       }  
     }
     send(new_socket, Mail.c_str(), strlen(Mail.c_str()),0);    //schicke mail zum client
-    status = 0;  //programm fertig
     Mail.erase();
     closedir(dp);
-    status = 8;
-    chdir("..");
-    return status;
+    return 0;
 
 }
 //*************************************************************************
 //*************************************************************************
 //*************************************************************************
 
-int ReadMail (char * buffer, int status, string & Mail,int size, int new_socket)
+int ReadMail (char * buffer, string & Mail,int size, int new_socket)
 {
   
   DIR * dp;
   struct dirent *dir;
   FILE *datei;
-  int i = 0;
-  send(new_socket, "OK1\n", strlen("OK1\n"),0);
+  int i = 1;
+  send(new_socket, "OK\n", strlen("OK\n"),0);
   size = recv (new_socket, buffer, BUF-1, 0);
   buffer[size] = '\0';  
-  cout <<"buffer: " << buffer  << endl;
   if ((dp=opendir(buffer)) == NULL)
   {
+    perror("opendir() error");
     return -1;
   }
   //wechselt in den Mailordner
-  chdir(buffer);
-  send(new_socket, "OK1\n", strlen("OK1\n"),0);
+  if (chdir(buffer) != 0){
+    perror("chdir() error");
+    return -1;
+  }
+  send(new_socket, "OK\n", strlen("OK\n"),0);
   size = recv (new_socket, buffer, BUF-1, 0);
   buffer[size] = '\0';  
-  while((dir=readdir(dp)) != NULL && i < (atoi(buffer)-1) )
+
+
+  while((dir=readdir(dp)) != NULL)
   {
-    if(     strcmp( dir->d_name, "." ) == 0 || 
-    strcmp( dir->d_name, ".." ) == 0 ||
-    strcmp( dir->d_name, ".DS_Store" ) == 0 )
+    if(i  >= (atoi(buffer))+1 )
+    {
+      break;
+    }else if(strcmp( dir->d_name, "." ) == 0 || 
+             strcmp( dir->d_name, ".." ) == 0 ||
+             strcmp( dir->d_name, ".DS_Store" ) == 0 )
     {
      continue;
     }else{ 
       i++;
+    }
+    if(i  == (atoi(buffer))+1 )
+    {
+      break;
     }
   }
 //Liest die Datei aus.
 ifstream file(dir->d_name);
 string str;
 string file_contents;
-while (std::getline(file, str))
+if(file.good())
 {
-  file_contents += str;
-  file_contents.push_back('\n');
-} 
+  while (getline(file, str))
+  {
+    file_contents += str;
+    file_contents.push_back('\n');
+  }
+}else
+{
+  perror("file.good() error");
+  return -1;
+}
+ 
 //schickt den Mail-Inhalt
-send(new_socket, file_contents.c_str(), strlen(file_contents.c_str()),0);
-
+  send(new_socket, file_contents.c_str(), strlen(file_contents.c_str()),0);
+  if (chdir("..") != 0){  //zurück in den main ordner
+      perror("chdir() error");
+      return -1;
+  } 
+  return 0;
 }
 
 
@@ -332,28 +364,40 @@ send(new_socket, file_contents.c_str(), strlen(file_contents.c_str()),0);
 
 
 
-int SaveMail(char * buffer, int status,string & mailname, string & Mail, int size, int new_socket)
+int SaveMail(char * buffer, string & mailname, string & Mail, int size, int new_socket)
 {
   FILE *fp;
   int stat;//Zum Ordner erstellen
 
-  send(new_socket, "OK1\n", strlen("OK1\n"),0);
+  send(new_socket, "OK\n", strlen("OK\n"),0);
   size = recv (new_socket, buffer, BUF-1, 0);
-  buffer[size] = '\0';  
+  buffer[size] = '\0';
+  if((strlen(buffer)) <= 9){  
   Mail.append(buffer);//<Sender max. 8 Zeichen>\n
-
-  send(new_socket, "OK1\n", strlen("OK1\n"),0);
+  }
+  else
+  {
+    perror("String too long error");
+    return -1;
+  } 
+  send(new_socket, "OK\n", strlen("OK\n"),0);
   size = recv (new_socket, buffer, BUF-1, 0);
   buffer[size] = '\0'; 
-
-
-    if((strlen(buffer)) <= 9){
-      stat = mkdir(buffer, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
-      if (chdir(buffer) != 0){  // in den rdner rein um auf Mail zuzugreifen
-        perror("chdir() failed");
+  cout << "2 buffer:" << buffer <<  "lenght"<< strlen(buffer) << endl;
+      if((strlen(buffer)) <= 9){
+        stat = mkdir(buffer, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+        if (chdir(buffer) != 0){  // in den rdner rein um auf Mail zuzugreifen
+           perror("chdir() error");
+           return -1;
+        }
+      }
+      else
+      {
+        perror("String too long error");
+        return -1;
       } 
       Mail.append(buffer);// <Empfänger max. 8 Zeichen>\n
-      send(new_socket, "OK1\n", strlen("OK1\n"),0);
+      send(new_socket, "OK\n", strlen("OK\n"),0);
       size = recv (new_socket, buffer, BUF-1, 0);
       buffer[size] = '\0'; 
       if((strlen(buffer)) <= 81){
@@ -364,24 +408,19 @@ int SaveMail(char * buffer, int status,string & mailname, string & Mail, int siz
         mailname.append(".txt");
         Mail.append(buffer);
         fp = fopen(mailname.c_str(), "ab+");  //File erstellen
-        /*    if (fp == NULL){  //fehlerabfrage fehlt noch
-        printf ("Error opening file unexist.ent: %s\n",strerror(errno));
-        return EXIT_FAILURE;
-        }
-        else{*/
         fclose(fp);
-        status = 4; 
       }else{
+       perror("String too long error");
        return -1;
       }    
-      send(new_socket, "OK1\n", strlen("OK1\n"),0);
+      send(new_socket, "OK\n", strlen("OK\n"),0);
       size = recv (new_socket, buffer, BUF-1, 0);
       buffer[size] = '\0';          
       // <Nachricht, beliebige Anzahl an Zeilen\n>
       Mail.append(buffer);
 
       while(strcmp(buffer, ".\n") != 0) {
-        send(new_socket, "OK1\n", strlen("OK1\n"),0);
+        send(new_socket, "OK\n", strlen("OK\n"),0);
         size = recv (new_socket, buffer, BUF-1, 0);
         buffer[size] = '\0';    
         Mail.append(buffer);
@@ -393,15 +432,13 @@ int SaveMail(char * buffer, int status,string & mailname, string & Mail, int siz
       }else{
         fputs(Mail.c_str(),fp); 
         fclose(fp);
-        status = 0;
         if (chdir("..") != 0){  //zurück in den main ordner
-          perror("chdir() to /tmp failed");
-          return EXIT_FAILURE;
+          perror("chdir() error");
+          return -1;
         } 
       Mail.erase();
-      return status;
+      return 0;
       }
-   }
 }
 
 //*************************************************************************
@@ -411,50 +448,61 @@ int SaveMail(char * buffer, int status,string & mailname, string & Mail, int siz
 
 
 
-int DeleteMail(char * buffer, int status, string & Mail,int size, int new_socket)
+int DeleteMail(char * buffer,  string & Mail,int size, int new_socket)
 {
   DIR * dp;
   struct dirent *dir;
   FILE *datei;
-  int i = 0;
-  send(new_socket, "OK1\n", strlen("OK1\n"),0);
+  int i = 1;
+  send(new_socket, "OK\n", strlen("OK\n"),0);
   size = recv (new_socket, buffer, BUF-1, 0);
   buffer[size] = '\0';  
-  cout <<"buffer: " << buffer  << endl;
   if ((dp=opendir(buffer)) == NULL)
   {
+     perror("opendir() error");
     return -1;
   }
   //wechselt in den Mailordner
-  chdir(buffer);
-  send(new_socket, "OK1\n", strlen("OK1\n"),0);
+  if (chdir(buffer) != 0){  
+    perror("chdir() error");
+    return -1;
+  } 
+  send(new_socket, "OK\n", strlen("OK\n"),0);
   size = recv (new_socket, buffer, BUF-1, 0);
   buffer[size] = '\0';  
-  while((dir=readdir(dp)) != NULL && i < (atoi(buffer)-1) )
+  //Sucht die richtige Mail
+  while((dir=readdir(dp)) != NULL)
   {
-    if(     strcmp( dir->d_name, "." ) == 0 || 
-    strcmp( dir->d_name, ".." ) == 0 ||
-    strcmp( dir->d_name, ".DS_Store" ) == 0 )
+    if(i  >= (atoi(buffer))+1 )
+    {
+      break;
+    }else if(strcmp( dir->d_name, "." ) == 0 || 
+       strcmp( dir->d_name, ".." ) == 0 ||
+       strcmp( dir->d_name, ".DS_Store" ) == 0 )
     {
      continue;
     }else{ 
       i++;
     }
+    if(i  == (atoi(buffer))+1 )
+    {
+      break;
+    }
   }
   //Löscht die Mail
   if( remove( dir->d_name ) != 0 )
   {
-      perror( "Error deleting file" );
-    send(new_socket, "DELOK\n", strlen("DELOK\n"),0);
+    perror("remove() error");
+    return -1;
   }
   else
   {
-    cout << "deleted file :" <<dir->d_name  << endl;
-    puts( "File successfully deleted" );
-    send(new_socket, "DELOK\n", strlen("DELOK\n"),0);
+    send(new_socket, "OK\n", strlen("OK\n"),0);
   }
-   
-  //schickt den Mail-Inhalt
+  if (chdir("..") != 0){  //zurück in den main ordner
+     perror("chdir() error");
+    return -1;
+  } 
  return 0;
 }
 
@@ -463,25 +511,38 @@ int DeleteMail(char * buffer, int status, string & Mail,int size, int new_socket
 void ManPage(){
 
  cout << endl << endl << "NAME" << endl;
- cout << "          TWMailer - FH project c++ Server" << endl << endl << endl;
+ cout << "          TWMailer - FH project c++ Server" << endl << endl ;
+ cout << "          Daniel Hörmann & Benjamin Thorstensen" << endl << endl ;
  cout << endl << endl;
  cout << "SYNOPSIS" << endl;
- cout <<"       SEND: Senden einer Nachricht vom Client zum Server." << endl;
- cout<< "       LIST: Auflisten der Nachrichten eines Users. "<< endl;
- cout<< "             Es soll die Anzahl der Nachrichten und pro  "<< endl;
- cout<< "             Nachricht die Betreff Zeile angezeigt werden." << endl;
- cout<< "       READ: Anzeigen einer bestimmten Nachricht fur einen User." << endl;
- cout <<"             Löschen einer Nachricht eines Users." << endl << endl << endl;
- cout <<"       QUIT: Logout des Clients" << endl << endl << endl;
+ cout << "      SEND" << endl;
+ cout << "      <Sender max. 8 Zeichen>" << endl;
+ cout << "      <Empfänger max. 8 Zeichen>" << endl;
+ cout << "      <Nachricht, beliebige Anzahl an Zeilen" << endl;
+ cout << "      <.>" << endl;
+ cout << "      LIST" << endl;
+ cout << "      <Username max. 8 Zeichen>" << endl  ;
+ cout << "      READ" << endl;
+ cout << "      <Username max. 8 Zeichen>" << endl;
+ cout << "      <Nachrichten-Nummer>" << endl ;
+ cout << "      DEL" << endl;
+ cout << "      <Username max. 8 Zeichen>" << endl;
+ cout << "      <Nachrichten-Nummer>" << endl  ;
  cout << "DESCRIPTION" << endl;
- cout << "      Lorem ipsum dolor sit amet, consetetur sadipscing elitr" << endl;
- cout << "      Lorem ipsum dolor sit amet, consetetur sadipscing elitr" << endl;
- cout << "      Lorem ipsum dolor sit amet, consetetur sadipscing elitr" << endl;
- cout << "      Lorem ipsum dolor sit amet, consetetur sadipscing elitr" << endl << endl << endl;
- cout << "OPTIONS" << endl;
- cout << "      Lorem ipsum dolor sit amet, consetetur sadipscing elitr" << endl;
- cout << "      Lorem ipsum dolor sit amet, consetetur sadipscing elitr" << endl;
- cout << "      Lorem ipsum dolor sit amet, consetetur sadipscing elitr" << endl;
- cout << "      Lorem ipsum dolor sit amet, consetetur sadipscing elitr" << endl;
+ cout << "      Client-Server Anwendung in C/C++ zum Senden und Empfangen" << endl;
+ cout << "      von internen Mails mithilfe von Socket Kommunikation." << endl << endl;
+ cout <<"       SEND: Senden einer Nachricht vom Client zum Server." << endl;
+ cout <<"       LIST: Auflisten der Nachrichten eines Users."<< endl;
+ cout <<"             Es soll die Anzahl der Nachrichten und pro"<< endl;
+ cout <<"             Nachricht die Betreff Zeile angezeigt werden." << endl;
+ cout <<"       READ: Anzeigen einer bestimmten Nachricht fur einen User." << endl;
+ cout <<"             Löschen einer Nachricht eines Users." << endl ;
+ cout <<"       QUIT: Logout des Clients" << endl << endl; ;
+ cout << "      Der Server antwortet bei korrekten Parameter mit:" << endl;
+ cout << "      OK" << endl;
+ cout << "      Der Server antwortet bei falschen Parameter mit:" << endl;
+ cout << "      ERR" << endl;
+
+
 
 }

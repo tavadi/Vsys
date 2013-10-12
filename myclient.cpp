@@ -7,16 +7,10 @@
 //           Thorstensen Benjamin - if12b066
 //
 //
-//lsof -i
-//zeigt die ports an oderso
-//
-//
-//Fehler abfragen noch anschauen
-//Struktur der 
 //
 // ############################################################################
 // ############################################################################
-//
+
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -29,7 +23,7 @@
 using namespace std;
 #define BUF 1024
 //#define PORT 6543
-
+void ManPage();
 
 int main (int argc, char **argv) {
   int create_socket;
@@ -38,8 +32,12 @@ int main (int argc, char **argv) {
   int size;
   int port;
 
-  if( argc < 3 ){
-     printf("Usage: %s ServerAdresse\n", argv[0]);
+  if (strcmp(argv[1], "help")  == 0){
+  ManPage();
+  return EXIT_SUCCESS;
+  }else if( argc != 3){
+     cout << "./myclient [IP] [PORT]" << endl;
+     cout << "Manpage:" << endl << "./myclient help" << endl;
      exit(EXIT_FAILURE);
   }else
   {
@@ -80,8 +78,48 @@ int main (int argc, char **argv) {
         buffer[size]= '\0';
         printf("%s",buffer);
       }
-  } 
-  while (strcmp (buffer, "quit\n") != 0);
+  }while (strcmp (buffer, "QUIT\n") != 0);
   close (create_socket);
   return EXIT_SUCCESS;
+}
+
+
+
+void ManPage(){
+
+ cout << endl << endl << "NAME" << endl;
+ cout << "          TWMailer - FH project c++ Server" << endl << endl ;
+ cout << "          Daniel Hörmann & Benjamin Thorstensen" << endl << endl ;
+ cout << endl << endl;
+ cout << "SYNOPSIS" << endl;
+ cout << "      SEND" << endl;
+ cout << "      <Sender max. 8 Zeichen>" << endl;
+ cout << "      <Empfänger max. 8 Zeichen>" << endl;
+ cout << "      <Nachricht, beliebige Anzahl an Zeilen" << endl;
+ cout << "      <.>" << endl;
+ cout << "      LIST" << endl;
+ cout << "      <Username max. 8 Zeichen>" << endl  ;
+ cout << "      READ" << endl;
+ cout << "      <Username max. 8 Zeichen>" << endl;
+ cout << "      <Nachrichten-Nummer>" << endl ;
+ cout << "      DEL" << endl;
+ cout << "      <Username max. 8 Zeichen>" << endl;
+ cout << "      <Nachrichten-Nummer>" << endl  ;
+ cout << "DESCRIPTION" << endl;
+ cout << "      Client-Server Anwendung in C/C++ zum Senden und Empfangen" << endl;
+ cout << "      von internen Mails mithilfe von Socket Kommunikation." << endl << endl;
+ cout <<"       SEND: Senden einer Nachricht vom Client zum Server." << endl;
+ cout <<"       LIST: Auflisten der Nachrichten eines Users."<< endl;
+ cout <<"             Es soll die Anzahl der Nachrichten und pro"<< endl;
+ cout <<"             Nachricht die Betreff Zeile angezeigt werden." << endl;
+ cout <<"       READ: Anzeigen einer bestimmten Nachricht fur einen User." << endl;
+ cout <<"             Löschen einer Nachricht eines Users." << endl ;
+ cout <<"       QUIT: Logout des Clients" << endl << endl; ;
+ cout << "      Der Server antwortet bei korrekten Parameter mit:" << endl;
+ cout << "      OK" << endl;
+ cout << "      Der Server antwortet bei falschen Parameter mit:" << endl;
+ cout << "      ERR" << endl;
+
+
+
 }
